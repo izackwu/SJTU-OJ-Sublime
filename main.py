@@ -2,7 +2,7 @@ import sublime
 import sublime_plugin
 import requests
 import re
-import json
+import time
 from os.path import split
 
 
@@ -30,12 +30,17 @@ class SubmitCode(sublime_plugin.TextCommand):
         if not all((problem, code)):
             print("Ops, failed to get the problem id or code.")
             return
-        username, password = self.select_account()
-        session = self.login(username, password)
+        account = self.select_account()
+        print(account)
+        session = self.login(**account)
         if session:
-            print("Login successfully as {user}.".format(user=username))
+            print("Login successfully as {user}.".format(user=account["username"]))
         status_code, content = self.submit(problem, code, language, session)
         assert status_code == 200, "Failed to submit!"
+        print("Submitted!")
+        result, scores = self.get_result(account["username"], problem, session, max_trial=5)
+        if result:
+            sublime.message_dialog("result:{}\nscores:{}".format(result, scores))
 
     def get_problem_id(self):
         file_name = self.view.file_name()
@@ -94,13 +99,14 @@ class SubmitCode(sublime_plugin.TextCommand):
     def select_account(self):
         # To-DO: pop up a msgbox to select the account
         # But now, just return an account at random
-        try:
-            with open("account.json", mode="r", encoding="utf8", errors="ignore") as file:
-                account_list = json.load(file)
-        except Exception as e:
-            print("Failed to load the account file.")
-            raise e
+        account_list = self.view.settings().get("accounts", list())
         account_num = len(account_list)
         assert account_num != 0, "There's no account in the file!"
         import random
         return account_list[random.randint(0, account_num-1)]
+
+    def get_result(self, username, problem_id, session, max_trial=5, waiting_time=5):
+        # To-Do: check the result every waiting_time for at most max_trail times
+        # But now, just return Success
+        time.sleep(waiting_time)
+        return "正确", "100"
